@@ -4,7 +4,8 @@ import { useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import WallStatus from "@/components/WallStatus";
 import PriceChart from "@/components/PriceChart";
-import { Wall, BreakoutStatus } from "@/lib/analysis";
+import HistoricalPerformance from "@/components/HistoricalPerformance";
+import { Wall, BreakoutStatus, BounceStats } from "@/lib/analysis";
 
 interface ChartPoint {
   date: string;
@@ -19,6 +20,7 @@ interface ScanResult {
   walls: Wall[];
   status: BreakoutStatus;
   chartPrices: ChartPoint[];
+  bounceStats: BounceStats;
 }
 
 export default function Home() {
@@ -126,6 +128,9 @@ export default function Home() {
                 </div>
               );
             })()}
+
+            {/* Historical Performance — below Steel Walls */}
+            <HistoricalPerformance stats={result.bounceStats} />
           </div>
         )}
       </div>

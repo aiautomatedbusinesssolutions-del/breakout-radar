@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchHistoricalPrices } from "@/lib/tiingo";
-import { findWalls, getBreakoutStatus } from "@/lib/analysis";
+import { findWalls, getBreakoutStatus, findBounces } from "@/lib/analysis";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
 
     const walls = findWalls(prices);
     const status = getBreakoutStatus(prices);
+    const bounceStats = findBounces(prices);
 
     // Send last ~6 months of OHLC for the chart (~130 trading days)
     // Walls are already calculated from the full 5-year dataset above
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       walls,
       status,
       chartPrices,
+      bounceStats,
     });
   } catch (err) {
     const message =

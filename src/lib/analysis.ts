@@ -37,6 +37,8 @@ export interface BreakoutStatus {
 interface Extrema {
   price: number;
   kind: "high" | "low";
+  date: string;
+  index: number;
 }
 
 function findExtremas(prices: DailyPrice[], window: number = 5): Extrema[] {
@@ -64,8 +66,10 @@ function findExtremas(prices: DailyPrice[], window: number = 5): Extrema[] {
       }
     }
 
-    if (isLocalHigh) extremas.push({ price: currentHigh, kind: "high" });
-    if (isLocalLow) extremas.push({ price: currentLow, kind: "low" });
+    if (isLocalHigh)
+      extremas.push({ price: currentHigh, kind: "high", date: prices[i].date, index: i });
+    if (isLocalLow)
+      extremas.push({ price: currentLow, kind: "low", date: prices[i].date, index: i });
   }
 
   return extremas;
@@ -78,7 +82,7 @@ function findExtremas(prices: DailyPrice[], window: number = 5): Extrema[] {
 // ---------------------------------------------------------------------------
 
 interface Bucket {
-  prices: number[];
+  extremas: Extrema[];
   average: number;
 }
 
@@ -92,16 +96,17 @@ function clusterIntoBuckets(extremas: Extrema[]): Bucket[] {
     for (const bucket of buckets) {
       const distance = Math.abs(point.price - bucket.average) / bucket.average;
       if (distance <= 0.015) {
-        bucket.prices.push(point.price);
+        bucket.extremas.push(point);
         bucket.average =
-          bucket.prices.reduce((sum, p) => sum + p, 0) / bucket.prices.length;
+          bucket.extremas.reduce((sum, e) => sum + e.price, 0) /
+          bucket.extremas.length;
         placed = true;
         break;
       }
     }
 
     if (!placed) {
-      buckets.push({ prices: [point.price], average: point.price });
+      buckets.push({ extremas: [point], average: point.price });
     }
   }
 
@@ -128,12 +133,12 @@ export function findWalls(prices: DailyPrice[]): Wall[] {
   const buckets = clusterIntoBuckets(extremas);
 
   const walls: Wall[] = buckets
-    .filter((bucket) => bucket.prices.length >= MIN_TOUCHES)
+    .filter((bucket) => bucket.extremas.length >= MIN_TOUCHES)
     .map((bucket) => {
       const avg = Math.round(bucket.average * 100) / 100;
       return {
         price: avg,
-        strength: bucket.prices.length,
+        strength: bucket.extremas.length,
         type: avg >= currentPrice ? "Ceiling" : "Floor",
         distancePercent:
           Math.round(((avg - currentPrice) / currentPrice) * 10000) / 100,
@@ -160,6 +165,126 @@ export function calcAverageVolume20d(prices: DailyPrice[]): number {
   const recent = prices.slice(-20);
   if (recent.length === 0) return 0;
   return recent.reduce((sum, day) => sum + day.volume, 0) / recent.length;
+}
+
+// ---------------------------------------------------------------------------
+// Step 5 — Historical Bounce Detection (unified with Steel Wall logic)
+// Uses the SAME extrema → cluster pipeline as findWalls so touch counts
+// and dates are guaranteed identical to the Steel Wall strength numbers.
+// ---------------------------------------------------------------------------
+
+const REACTION_WINDOW = 20; // look 20 trading days ahead for the reaction move
+
+export interface Bounce {
+  date: string;
+  wallType: "Floor" | "Ceiling";
+  movePercent: number;
+}
+
+export interface BounceStats {
+  floorTouches: number;
+  floorAvgMove: number;
+  ceilingTouches: number;
+  ceilingAvgMove: number;
+  recentBounces: Bounce[];
+}
+
+/**
+ * Extracts bounces from the exact same extrema clusters that determine
+ * Steel Wall strength. Touch count here === wall.strength, guaranteed.
+ */
+export function findBounces(prices: DailyPrice[]): BounceStats {
+  if (prices.length === 0) {
+    return {
+      floorTouches: 0,
+      floorAvgMove: 0,
+      ceilingTouches: 0,
+      ceilingAvgMove: 0,
+      recentBounces: [],
+    };
+  }
+
+  const currentPrice = prices[prices.length - 1].close;
+  const extremas = findExtremas(prices);
+  const buckets = clusterIntoBuckets(extremas);
+
+  // Filter to walls (3+ touches), sort by strength — same as findWalls
+  const wallBuckets = buckets
+    .filter((b) => b.extremas.length >= MIN_TOUCHES)
+    .sort((a, b) => b.extremas.length - a.extremas.length);
+
+  // Two-Wall Rule: strongest Floor bucket + strongest Ceiling bucket
+  const floorBucket = wallBuckets.find(
+    (b) => Math.round(b.average * 100) / 100 < currentPrice
+  );
+  const ceilingBucket = wallBuckets.find(
+    (b) => Math.round(b.average * 100) / 100 >= currentPrice
+  );
+
+  function extractBounces(
+    bucket: Bucket | undefined,
+    wallType: "Floor" | "Ceiling"
+  ): Bounce[] {
+    if (!bucket) return [];
+
+    return bucket.extremas
+      .sort((a, b) => a.index - b.index)
+      .map((ext) => {
+        let movePercent = 0;
+
+        if (wallType === "Floor") {
+          // Local low → measure the max rally over the next 20 days
+          let maxHigh = ext.price;
+          const end = Math.min(ext.index + REACTION_WINDOW, prices.length - 1);
+          for (let j = ext.index + 1; j <= end; j++) {
+            if (prices[j].high > maxHigh) maxHigh = prices[j].high;
+          }
+          movePercent = ((maxHigh - ext.price) / ext.price) * 100;
+        } else {
+          // Local high → measure the max drop over the next 20 days
+          let minLow = ext.price;
+          const end = Math.min(ext.index + REACTION_WINDOW, prices.length - 1);
+          for (let j = ext.index + 1; j <= end; j++) {
+            if (prices[j].low < minLow) minLow = prices[j].low;
+          }
+          movePercent = ((ext.price - minLow) / ext.price) * 100;
+        }
+
+        return {
+          date: ext.date,
+          wallType,
+          movePercent: Math.round(movePercent * 100) / 100,
+        };
+      });
+  }
+
+  const floorBounces = extractBounces(floorBucket, "Floor");
+  const ceilingBounces = extractBounces(ceilingBucket, "Ceiling");
+  const allBounces = [...floorBounces, ...ceilingBounces].sort(
+    (a, b) => a.date.localeCompare(b.date)
+  );
+
+  return {
+    floorTouches: floorBounces.length,
+    floorAvgMove:
+      floorBounces.length > 0
+        ? Math.round(
+            (floorBounces.reduce((s, b) => s + b.movePercent, 0) /
+              floorBounces.length) *
+              100
+          ) / 100
+        : 0,
+    ceilingTouches: ceilingBounces.length,
+    ceilingAvgMove:
+      ceilingBounces.length > 0
+        ? Math.round(
+            (ceilingBounces.reduce((s, b) => s + b.movePercent, 0) /
+              ceilingBounces.length) *
+              100
+          ) / 100
+        : 0,
+    recentBounces: allBounces.slice(-10),
+  };
 }
 
 // Price within 2% of a Steel Wall is considered "testing" that level
