@@ -134,6 +134,66 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Education Station — always visible, regardless of search state */}
+      <div className="mx-auto mt-16 max-w-4xl border-t border-slate-800 pt-10">
+        <h3 className="mb-6 font-mono text-lg font-semibold text-slate-300">
+          Education Station
+        </h3>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p className="font-mono text-sm font-semibold text-slate-300">
+              01 / The 5-Year Foundation
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              We look back five years to find &lsquo;Steel Walls&rsquo;&mdash;price
+              levels where the world&rsquo;s biggest investors have historically
+              stepped in to buy or sell. By using such a long window, we filter
+              out the daily noise and focus only on the levels that truly matter.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p className="font-mono text-sm font-semibold text-slate-300">
+              02 / The Traffic Light System
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              The <span className="text-green-500">Green Floor</span> marks a
+              &lsquo;Value Zone&rsquo;&mdash;a price level where buyers have
+              historically supported the stock. The{" "}
+              <span className="text-red-500">Red Ceiling</span> marks a
+              &lsquo;Supply Zone&rsquo;&mdash;a level where sellers have
+              historically pushed the price back down.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p className="font-mono text-sm font-semibold text-slate-300">
+              03 / Validated Strength
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              Every &lsquo;Touch&rsquo; or &lsquo;Bounce&rsquo; listed in the
+              Historical Performance table represents a moment in history where
+              the market confirmed a wall was real. More touches means a stronger
+              wall&mdash;and potentially higher-probability reactions in the
+              future.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+            <p className="font-mono text-sm font-semibold text-slate-300">
+              04 / No-Man&rsquo;s Land
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              When a stock is &lsquo;Trading between Major Levels,&rsquo; it sits
+              in a neutral zone with no strong historical reference nearby. The
+              highest-probability opportunities tend to appear when the price is
+              near a Steel Wall&mdash;not in the middle of open space.
+            </p>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
