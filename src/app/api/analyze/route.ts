@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchHistoricalPrices } from "@/lib/tiingo";
-import { findWalls, getBreakoutStatus, findBounces } from "@/lib/analysis";
+import { analyzeAll } from "@/lib/analysis";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +28,8 @@ export async function POST(req: NextRequest) {
     const prices = await fetchHistoricalPrices(ticker);
     console.log(`[API] Got ${prices.length} prices for ${ticker}`);
 
-    const walls = findWalls(prices);
-    const status = getBreakoutStatus(prices);
-    const bounceStats = findBounces(prices);
+    // Single-pass analysis — extrema detection + clustering runs ONCE
+    const { walls, status, bounceStats } = analyzeAll(prices);
 
     // Send last ~6 months of OHLC for the chart (~130 trading days)
     // Walls are already calculated from the full 5-year dataset above

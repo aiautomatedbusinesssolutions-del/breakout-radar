@@ -37,7 +37,7 @@ export default function HistoricalPerformance({
                   {stats.floorTouches}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Precision touches (0.5%)
+                  Confirmed touches
                 </p>
               </div>
               <div className="text-right">
@@ -61,7 +61,7 @@ export default function HistoricalPerformance({
                   {stats.ceilingTouches}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Precision touches (0.5%)
+                  Confirmed touches
                 </p>
               </div>
               <div className="text-right">

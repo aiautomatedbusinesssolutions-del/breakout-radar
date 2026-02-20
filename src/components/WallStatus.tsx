@@ -9,33 +9,25 @@ interface WallStatusProps {
 
 const STATUS_CONFIG = {
   "testing-floor": {
-    label: "Price is testing a Major Floor",
-    description:
-      "The price is within 2% of the strongest support level from 5 years of data.",
+    label: "ACTIVE TEST: Price is hitting a Major Floor",
     colors: "border-emerald-500/30 bg-emerald-500/10",
     textColor: "text-emerald-400",
     icon: "shield",
   },
   "testing-ceiling": {
-    label: "Price is testing a Heavy Ceiling",
-    description:
-      "The price is within 2% of the strongest resistance level from 5 years of data.",
+    label: "ACTIVE TEST: Price is hitting a Heavy Ceiling",
     colors: "border-amber-500/30 bg-amber-500/10",
     textColor: "text-amber-400",
     icon: "alert",
   },
   "between-levels": {
     label: "Trading between Major Levels",
-    description:
-      "The price is not near either Steel Wall. See the chart for the closest levels.",
     colors: "border-sky-500/30 bg-sky-500/10",
     textColor: "text-sky-400",
     icon: "none",
   },
   "no-walls": {
     label: "No Clear Walls Found",
-    description:
-      "We couldn't find strong price levels in the last 5 years of data.",
     colors: "border-slate-700 bg-slate-800/50",
     textColor: "text-slate-400",
     icon: "none",
@@ -43,9 +35,6 @@ const STATUS_CONFIG = {
 } as const;
 
 function StatusIcon({ type }: { type: string }) {
-  if (type === "rocket") {
-    return <span className="text-5xl">🚀</span>;
-  }
   if (type === "shield") {
     return (
       <svg className="h-12 w-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,20 +56,37 @@ function StatusIcon({ type }: { type: string }) {
 
 export default function WallStatus({ ticker, status }: WallStatusProps) {
   const config = STATUS_CONFIG[status.status];
+  const isBetween = status.status === "between-levels";
+  const hasIcon = config.icon !== "none";
 
   return (
     <div className={`w-full max-w-2xl rounded-xl border p-6 ${config.colors}`}>
-      <div className="flex items-center gap-4">
+      <div className={`flex flex-col items-center text-center ${hasIcon ? "gap-3" : "gap-1"}`}>
         <StatusIcon type={config.icon} />
-        <div className="flex-1">
-          <h2 className={`text-2xl font-bold ${config.textColor}`}>
-            {ticker}
-          </h2>
-          <p className={`mt-1 text-lg font-semibold ${config.textColor}`}>
-            {config.label}
-          </p>
-          <p className="mt-1 text-sm text-slate-400">{config.description}</p>
-        </div>
+        <h2 className={`text-2xl font-bold ${config.textColor}`}>
+          {ticker}
+        </h2>
+        <p className={`text-lg font-semibold ${config.textColor}`}>
+          {config.label}
+        </p>
+        {isBetween &&
+          status.nearestWallPercent !== null &&
+          status.nearestWallType !== null && (
+            <p className="text-sm text-slate-400">
+              {status.nearestWallPercent}% from closest{" "}
+              <span
+                className={
+                  status.nearestWallType === "Floor"
+                    ? "text-emerald-400/80"
+                    : "text-rose-400/80"
+                }
+              >
+                {status.nearestWallType === "Floor"
+                  ? "Price Floor"
+                  : "Heavy Ceiling"}
+              </span>
+            </p>
+          )}
       </div>
 
       {/* Quick stats row */}

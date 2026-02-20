@@ -25,6 +25,9 @@ interface TiingoPrice {
   splitFactor: number;
 }
 
+/** Request timeout — 10 seconds */
+const FETCH_TIMEOUT_MS = 10_000;
+
 /** 5 years ago from today, as YYYY-MM-DD */
 function getFiveYearsAgo(): string {
   const d = new Date();
@@ -55,6 +58,9 @@ export async function fetchHistoricalPrices(
 
   console.log(`[Tiingo] Fetching ${symbol} from ${startDate}`);
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   let res: Response;
   try {
     res = await fetch(url, {
@@ -62,11 +68,25 @@ export async function fetchHistoricalPrices(
         "Content-Type": "application/json",
         Authorization: `Token ${apiKey}`,
       },
+      signal: controller.signal,
     });
   } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(
+        `Request timed out while fetching data for "${ticker}". Please try again.`
+      );
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[Tiingo] Network error: ${msg.slice(0, 80)}`);
     throw new Error(`Network error while fetching data for "${ticker}".`);
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (res.status === 404) {
+    throw new Error(
+      `Could not find ticker "${ticker.toUpperCase()}". Please check the symbol and try again.`
+    );
   }
 
   if (!res.ok) {
@@ -75,7 +95,7 @@ export async function fetchHistoricalPrices(
       `[Tiingo] HTTP ${res.status} ${res.statusText} — ${body.slice(0, 80)}`
     );
     throw new Error(
-      `Failed to fetch data for "${ticker}": ${res.status} ${res.statusText}`
+      `Data unavailable for "${ticker}": ${res.status} ${res.statusText}`
     );
   }
 
@@ -89,7 +109,9 @@ export async function fetchHistoricalPrices(
 
   if (!Array.isArray(data) || data.length === 0) {
     console.error("[Tiingo] Empty or invalid response");
-    throw new Error(`No historical data found for "${ticker}".`);
+    throw new Error(
+      `No historical data found for "${ticker.toUpperCase()}". It may be delisted or too new.`
+    );
   }
 
   console.log(`[Tiingo] Received ${data.length} daily bars for ${symbol}`);
