@@ -121,7 +121,6 @@ export default function Home() {
                       <WallCard
                         key={i}
                         wall={wall}
-                        currentPrice={result.status.currentPrice}
                       />
                     ))}
                   </div>
@@ -200,10 +199,8 @@ export default function Home() {
 
 function WallCard({
   wall,
-  currentPrice,
 }: {
   wall: Wall;
-  currentPrice: number;
 }) {
   const isFloor = wall.type === "Floor";
   const typeColor = isFloor ? "text-emerald-400" : "text-amber-400";
